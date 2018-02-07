@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -17,97 +18,116 @@ namespace WindowsFormsApp2
 			InitializeComponent();
 		}
 
-		List<Rectangle> Rects = new List<Rectangle>();
+		private Rectangle _initialRectangle;
 
-		private int maxRects = 20;
+		private int _maxRects = 20;
 
-		private void InitRects()
+		private void InitRect()
 		{
-			Random rand = new Random();
+			var rand = new Random();
 
-			for (int i = 0; i < maxRects; ++i) // Rects[0] is the model
+			var x = rand.Next(panel1.Width - 50);
+			var y = rand.Next(panel1.Height - 50);
+
+			_initialRectangle = new Rectangle(new Point(x, y), new Size(rand.Next(panel1.Width - x), rand.Next(panel1.Height - y)));
+		}
+
+		private void DrawRects(Graphics g, IEnumerable<Rectangle> rects)
+		{
+			panel1.Invoke(new Action(() =>
 			{
-				int x = rand.Next(panel1.Width - 50);
-				int y = rand.Next(panel1.Height - 50);
+				foreach (var rectangle in rects)
+				{
+					g.DrawRectangle(Pens.BurlyWood, rectangle);
+				}
 
-				Rects.Add(new Rectangle(new Point(x, y), new Size(rand.Next(panel1.Width - x), rand.Next(panel1.Height - y))));
+				g.DrawRectangle(Pens.Blue, _initialRectangle);
+			}));
+		}
+
+		private IEnumerable<Rectangle> SplitRectangles(IEnumerable<Rectangle> initialList)
+		{
+			var list = new List<Rectangle>();
+			var rnd = new Random();
+
+			var initList = initialList.ToList();
+			initList.Remove(_initialRectangle);
+
+			for (var i = 0; i < _maxRects - initList.Count; i++)
+			{
+				if (initList.Count == 0)
+				{
+					initList = new List<Rectangle>(list);
+				}
+				var rect = initList.RandomPop();
+				for (var j = 0; j < 2; j++)
+				{
+					var rndnr = 2;
+					list.Add(new Rectangle(rect.X + rect.Width / rndnr * j, rect.Y, rect.Width / rndnr, rect.Height));
+				}
 			}
+
+			list.AddRange(initList);
+			return list;
 		}
 
-		private void DrawRects(Graphics g)
+		private IEnumerable<Rectangle> CreateInitialRectangles()
 		{
-			g.DrawRectangle(Pens.Blue, Rects[0]);
-			foreach (var rectangle in CreateInitialRectangle(Rects[0]))
-			{
-				g.DrawRectangle(Pens.BurlyWood, rectangle);
-			};
-
-			g.DrawRectangle(Pens.Black, new Rectangle(10, 40, 10, 10));
-		}
-
-		private IEnumerable<Rectangle> CreateInitialRectangle(Rectangle r)
-		{
-			var a = r.Location;
-			var rect = new Rectangle(new Point(0, 0), new Size(a));
-
-
 			var rects = new List<Rectangle>
 			{
-				new Rectangle(new Point(0, 0), new Size(r.Location)),
-				new Rectangle(new Point(r.X, 0), new Size(r.Width, r.Y)),
-				new Rectangle(new Point(r.X + r.Width), new Size(panel1.Width - r.Right - 10, r.Y)),
-				new Rectangle(new Point(0, r.Y), new Size(r.Left, r.Height)),
-				new Rectangle(new Point(r.Right, r.Top), new Size(panel1.Width - r.Right - 10, r.Height)),
-				new Rectangle(new Point(0, r.Bottom), new Size(r.Left, panel1.Height - r.Bottom - 10)),
-				new Rectangle(new Point(r.X, r.Y + r.Height), new Size(r.Width, panel1.Height - r.Bottom - 10)),
-				new Rectangle(new Point(r.X + r.Width, r.Y + r.Height), new Size(panel1.Width - r.Right - 10, panel1.Height - r.Bottom - 10))
+				new Rectangle(new Point(0, 0), new Size(_initialRectangle.Location)),
+				new Rectangle(new Point(_initialRectangle.X, 0), new Size(_initialRectangle.Width, _initialRectangle.Y)),
+				new Rectangle(new Point(_initialRectangle.X + _initialRectangle.Width),
+					new Size(panel1.Width - _initialRectangle.Right - 10, _initialRectangle.Y)),
+				new Rectangle(new Point(0, _initialRectangle.Y), new Size(_initialRectangle.Left, _initialRectangle.Height)),
+				new Rectangle(new Point(_initialRectangle.Right, _initialRectangle.Top),
+					new Size(panel1.Width - _initialRectangle.Right - 10, _initialRectangle.Height)),
+				new Rectangle(new Point(0, _initialRectangle.Bottom),
+					new Size(_initialRectangle.Left, panel1.Height - _initialRectangle.Bottom - 10)),
+				new Rectangle(new Point(_initialRectangle.X, _initialRectangle.Y + _initialRectangle.Height),
+					new Size(_initialRectangle.Width, panel1.Height - _initialRectangle.Bottom - 10)),
+				new Rectangle(
+					new Point(_initialRectangle.X + _initialRectangle.Width, _initialRectangle.Y + _initialRectangle.Height),
+					new Size(panel1.Width - _initialRectangle.Right - 10, panel1.Height - _initialRectangle.Bottom - 10))
 			};
 
 			return rects;
 		}
 
-		private bool Solve(Rectangle R)
+		private IEnumerable<Rectangle> Solve()
 		{
-			// if there is a rectangle containing R
-			for (int i = 1; i < Rects.Count; ++i)
-			{
-				if (Rects[i].Contains(R))
-				{
-					return true;
-				}
-			}
-
-			if (R.Width <= 3 && R.Height <= 3)
-			{
-				return false;
-			}
-
-			Rectangle UpperLeft = new Rectangle(new Point(R.X, R.Y), new Size(R.Width / 2, R.Height / 2));
-			Rectangle UpperRight = new Rectangle(new Point(R.X + R.Width / 2 + 1, R.Y), new Size(R.Width / 2, R.Height / 2));
-			Rectangle LowerLeft = new Rectangle(new Point(R.X, R.Y + R.Height / 2 + 1), new Size(R.Width / 2, R.Height / 2));
-			Rectangle LowerRight = new Rectangle(new Point(R.X + R.Width / 2 + 1, R.Y + +R.Height / 2 + 1), new Size(R.Width / 2, R.Height / 2));
-
-			return Solve(UpperLeft) && Solve(UpperRight) && Solve(LowerLeft) && Solve(LowerRight);
+			var parts = CreateInitialRectangles();
+			parts = SplitRectangles(parts);
+			return parts;
 		}
 
 		private void button1_Click(object sender, EventArgs e)
 		{
-			if (!int.TryParse(textBox2.Text, out maxRects))
+			if (!int.TryParse(textBox2.Text, out _maxRects))
 			{
 				MessageBox.Show("Invalid number buei!");
 				return;
 			}
 
-			Graphics g = panel1.CreateGraphics();
+			var g = panel1.CreateGraphics();
 			panel1.Hide();
 			panel1.Show();
-			Rects.Clear();
+			InitRect();
 
-			InitRects();
-			DrawRects(g);
-			
+			var items = Solve();
+			DrawRects(g, items);
+		}
+	}
 
-			textBox1.Text = Solve(Rects[0]).ToString();
+	public static class ListExtensions
+	{
+		public static T RandomPop<T>(this List<T> list)
+		{
+			var random = new Random();
+			var randomNumber = random.Next(list.Count - 1);
+			var item = list[randomNumber];
+			list.RemoveAt(randomNumber);
+			return item;
 		}
 	}
 }
